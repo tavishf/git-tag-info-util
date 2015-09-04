@@ -71,7 +71,7 @@ public class App {
             for (final Ref tag : tags) {
                 if (!tag.getName().equals(base.getName()) && tag.getObjectId().equals(next.getId())) {
                     final BranchComparison branchComparison = calculateDivergence(repository, base, tag);
-                    out.println("Includes changes from: " + readableTagName(tag));
+                    out.println("Includes changes from: " + readableTagName(branchComparison.other));
                     out.println("  - Ahead: " + branchComparison.ahead + " commits");
                     if (branchComparison.behind>0) {
                         out.println("  - Behind: " + branchComparison.behind + " (this is really bad!!! should always be ahead, never behind)");
@@ -94,21 +94,20 @@ public class App {
         return name.substring(tagNamePrefix.length());
     }
 
-    private static BranchComparison calculateDivergence(final Repository repository, final Ref local, final Ref tracking ) throws IOException {
-        final RevWalk walk = new RevWalk( repository );
-        final BranchComparison result = new BranchComparison();
+    private static BranchComparison calculateDivergence(final Repository repository, final Ref base, final Ref other) throws IOException {
+        final RevWalk walk = new RevWalk(repository);
         try {
-            final RevCommit localCommit = walk.parseCommit( local.getObjectId() );
-            final RevCommit trackingCommit = walk.parseCommit( tracking.getObjectId() );
-            walk.setRevFilter( RevFilter.MERGE_BASE );
-            walk.markStart( localCommit );
-            walk.markStart( trackingCommit );
+            final RevCommit baseCommit = walk.parseCommit(base.getObjectId());
+            final RevCommit compareCommit = walk.parseCommit(other.getObjectId());
+            walk.setRevFilter(RevFilter.MERGE_BASE);
+            walk.markStart(baseCommit);
+            walk.markStart(compareCommit);
             final RevCommit mergeBase = walk.next();
             walk.reset();
-            walk.setRevFilter( RevFilter.ALL );
-            result.ahead = RevWalkUtils.count( walk, localCommit, mergeBase );
-            result.behind = RevWalkUtils.count( walk, trackingCommit, mergeBase );
-            return result;
+            walk.setRevFilter(RevFilter.ALL);
+            int ahead = RevWalkUtils.count(walk, baseCommit, mergeBase);
+            int behind = RevWalkUtils.count(walk, compareCommit, mergeBase);
+            return new BranchComparison(base, other, behind, ahead);
         } finally {
             walk.dispose();
         }

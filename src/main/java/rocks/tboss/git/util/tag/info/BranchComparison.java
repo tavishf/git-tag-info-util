@@ -1,6 +1,17 @@
 package rocks.tboss.git.util.tag.info;
 
+import org.eclipse.jgit.lib.Ref;
+
 public class BranchComparison {
-  int behind;
-  int ahead;
+  final Ref base;
+  final Ref other;
+  final int behind;
+  final int ahead;
+
+  public BranchComparison(final Ref base, final Ref other, final int behind, final int ahead) {
+    this.base = base;
+    this.other = other;
+    this.behind = behind;
+    this.ahead = ahead;
+  }
 }
