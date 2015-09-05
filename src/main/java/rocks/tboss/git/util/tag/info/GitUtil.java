@@ -15,8 +15,10 @@ import org.eclipse.jgit.storage.file.FileRepositoryBuilder;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 public class GitUtil {
 
@@ -50,30 +52,23 @@ public class GitUtil {
         revWalk.markStart(root);
 
         final List<Ref> tags = new Git(repository).tagList().call();
+        final Map<ObjectId, Ref> tagsByCommitId = tagsByObjectId(tags, repository);
         int count = 0;
         final Iterator<RevCommit> commits = revWalk.iterator();
         while (commits.hasNext()) {
-            final RevCommit next =  commits.next();
-            for (final Ref tag : tags) {
-                Ref peeledRef = repository.peel(tag);
-                ObjectId compare;
-                if(peeledRef.getPeeledObjectId() != null) {
-                    compare = peeledRef.getPeeledObjectId();
-                } else {
-                    compare = tag.getObjectId();
+            final RevCommit commit =  commits.next();
+            Ref tag = tagsByCommitId.get(commit.getId());
+            if (null!= tag && !tag.getName().equals(base.getName())) {
+                final BranchComparison branchComparison = calculateDivergence(repository, base, tag);
+                out.println("Includes changes from: " + readableTagName(branchComparison.other));
+                out.println("  - Ahead: " + branchComparison.ahead + " commits");
+                if (branchComparison.behind>0) {
+                    //Pretty sure this is actually impossible?
+                    out.println("  - Behind: " + branchComparison.behind + " (this is really bad!!! should always be ahead, never behind)");
                 }
-                if (!tag.getName().equals(base.getName()) && compare.equals(next.getId())) {
-                    final BranchComparison branchComparison = calculateDivergence(repository, base, tag);
-                    out.println("Includes changes from: " + readableTagName(branchComparison.other));
-                    out.println("  - Ahead: " + branchComparison.ahead + " commits");
-                    if (branchComparison.behind>0) {
-                        //Pretty sure this is actually impossible?
-                        out.println("  - Behind: " + branchComparison.behind + " (this is really bad!!! should always be ahead, never behind)");
-                    }
-                    count++;
-                    if (count>=depth) {
-                        return;
-                    }
+                count++;
+                if (count>=depth) {
+                    return;
                 }
             }
         }
@@ -86,6 +81,21 @@ public class GitUtil {
                 .findGitDir() // scan up the file system tree
                 .setMustExist(true)
                 .build();
+    }
+
+    private static Map<ObjectId, Ref> tagsByObjectId(List<Ref> tags, Repository repository) {
+        final HashMap<ObjectId, Ref> result = new HashMap<>();
+        for (final Ref tag : tags) {
+            final ObjectId key;
+            final Ref peeledRef = repository.peel(tag);
+            if (peeledRef.getPeeledObjectId() != null) {
+                key = peeledRef.getPeeledObjectId();
+            } else {
+                key = tag.getObjectId();
+            }
+            result.put(key, tag);
+        }
+        return result;
     }
 
     private static String readableTagName(final Ref tag) {
