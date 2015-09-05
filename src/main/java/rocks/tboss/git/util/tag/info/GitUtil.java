@@ -19,6 +19,8 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 public class GitUtil {
 
@@ -53,25 +55,29 @@ public class GitUtil {
 
         final List<Ref> tags = new Git(repository).tagList().call();
         final Map<ObjectId, Ref> tagsByCommitId = tagsByObjectId(tags, repository);
-        int count = 0;
         final Iterator<RevCommit> commits = revWalk.iterator();
-        while (commits.hasNext()) {
-            final RevCommit commit =  commits.next();
-            Ref tag = tagsByCommitId.get(commit.getId());
-            if (null!= tag && !tag.getName().equals(base.getName())) {
-                final BranchComparison branchComparison = calculateDivergence(repository, base, tag);
-                out.println("Includes changes from: " + readableTagName(branchComparison.other));
-                out.println("  - Ahead: " + branchComparison.ahead + " commits");
-                if (branchComparison.behind>0) {
-                    //Pretty sure this is actually impossible?
-                    out.println("  - Behind: " + branchComparison.behind + " (this is really bad!!! should always be ahead, never behind)");
-                }
-                count++;
-                if (count>=depth) {
-                    return;
-                }
-            }
-        }
+        Iterable<RevCommit> iterable = () -> commits;
+        Stream<RevCommit> targetStream = StreamSupport.stream(iterable.spliterator(), false);
+        targetStream
+                //only where it points to a tag
+                .filter(commit -> null!=tagsByCommitId.get(commit.getId()))
+                .forEach(commit -> {
+                    Ref tag = tagsByCommitId.get(commit.getId());
+                    if (!tag.getName().equals(base.getName())) {
+                        final BranchComparison branchComparison;
+                        try {
+                            branchComparison = calculateDivergence(repository, base, tag);
+                            out.println("Includes changes from: " + readableTagName(branchComparison.other));
+                            out.println("  - Ahead: " + branchComparison.ahead + " commits");
+                            if (branchComparison.behind > 0) {
+                                //Pretty sure this is actually impossible?
+                                out.println("  - Behind: " + branchComparison.behind + " (this is really bad!!! should always be ahead, never behind)");
+                            }
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                });
     }
 
     private static Repository loadRepository(String path) throws IOException {
