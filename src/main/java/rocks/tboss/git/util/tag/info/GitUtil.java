@@ -55,7 +55,14 @@ public class GitUtil {
         while (commits.hasNext()) {
             final RevCommit next =  commits.next();
             for (final Ref tag : tags) {
-                if (!tag.getName().equals(base.getName()) && tag.getObjectId().equals(next.getId())) {
+                Ref peeledRef = repository.peel(tag);
+                ObjectId compare;
+                if(peeledRef.getPeeledObjectId() != null) {
+                    compare = peeledRef.getPeeledObjectId();
+                } else {
+                    compare = tag.getObjectId();
+                }
+                if (!tag.getName().equals(base.getName()) && compare.equals(next.getId())) {
                     final BranchComparison branchComparison = calculateDivergence(repository, base, tag);
                     out.println("Includes changes from: " + readableTagName(branchComparison.other));
                     out.println("  - Ahead: " + branchComparison.ahead + " commits");
