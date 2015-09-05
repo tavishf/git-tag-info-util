@@ -58,11 +58,13 @@ public class GitUtil {
         getRevCommitStream(revWalk)
                 //only where it points to a tag
                 .filter(commit -> null != tagsByCommitId.get(commit.getId()))
-                .forEach(commit -> {
-                    Ref tag = tagsByCommitId.get(commit.getId());
+                .map(commit -> {
+                    final Ref tag = tagsByCommitId.get(commit.getId());
+                    return calculateDivergence(repository, base, tag);
+                })
+                .forEach(branchComparison -> {
+                    final Ref tag = branchComparison.other;
                     if (!tag.getName().equals(base.getName())) {
-                        final BranchComparison branchComparison;
-                        branchComparison = calculateDivergence(repository, base, tag);
                         out.println("Includes changes from: " + readableTagName(branchComparison.other));
                         out.println("  - Ahead: " + branchComparison.ahead + " commits");
                         if (branchComparison.behind > 0) {
