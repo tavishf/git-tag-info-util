@@ -55,12 +55,9 @@ public class GitUtil {
 
         final List<Ref> tags = new Git(repository).tagList().call();
         final Map<ObjectId, Ref> tagsByCommitId = tagsByObjectId(tags, repository);
-        final Iterator<RevCommit> commits = revWalk.iterator();
-        Iterable<RevCommit> iterable = () -> commits;
-        Stream<RevCommit> targetStream = StreamSupport.stream(iterable.spliterator(), false);
-        targetStream
+        getRevCommitStream(revWalk)
                 //only where it points to a tag
-                .filter(commit -> null!=tagsByCommitId.get(commit.getId()))
+                .filter(commit -> null != tagsByCommitId.get(commit.getId()))
                 .forEach(commit -> {
                     Ref tag = tagsByCommitId.get(commit.getId());
                     if (!tag.getName().equals(base.getName())) {
@@ -78,6 +75,12 @@ public class GitUtil {
                         }
                     }
                 });
+    }
+
+    private static Stream<RevCommit> getRevCommitStream(final RevWalk revWalk) {
+        final Iterator<RevCommit> commits = revWalk.iterator();
+        final Iterable<RevCommit> iterable = () -> commits;
+        return StreamSupport.stream(iterable.spliterator(), false);
     }
 
     private static Repository loadRepository(String path) throws IOException {
