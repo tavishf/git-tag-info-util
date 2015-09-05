@@ -62,16 +62,12 @@ public class GitUtil {
                     Ref tag = tagsByCommitId.get(commit.getId());
                     if (!tag.getName().equals(base.getName())) {
                         final BranchComparison branchComparison;
-                        try {
-                            branchComparison = calculateDivergence(repository, base, tag);
-                            out.println("Includes changes from: " + readableTagName(branchComparison.other));
-                            out.println("  - Ahead: " + branchComparison.ahead + " commits");
-                            if (branchComparison.behind > 0) {
-                                //Pretty sure this is actually impossible?
-                                out.println("  - Behind: " + branchComparison.behind + " (this is really bad!!! should always be ahead, never behind)");
-                            }
-                        } catch (IOException e) {
-                            e.printStackTrace();
+                        branchComparison = calculateDivergence(repository, base, tag);
+                        out.println("Includes changes from: " + readableTagName(branchComparison.other));
+                        out.println("  - Ahead: " + branchComparison.ahead + " commits");
+                        if (branchComparison.behind > 0) {
+                            //Pretty sure this is actually impossible?
+                            out.println("  - Behind: " + branchComparison.behind + " (this is really bad!!! should always be ahead, never behind)");
                         }
                     }
                 });
@@ -115,11 +111,12 @@ public class GitUtil {
         return name.substring(TAG_NAME_PREFIX.length());
     }
 
-    private static BranchComparison calculateDivergence(final Repository repository, final Ref base, final Ref other) throws IOException {
+    private static BranchComparison calculateDivergence(final Repository repository, final Ref base, final Ref other) {
         final RevWalk walk = new RevWalk(repository);
         try {
             //Adapted from elsewhere, don't fully understand how the RevWalk stuff works
-            final RevCommit baseCommit = walk.parseCommit(base.getObjectId());
+            final RevCommit baseCommit;
+            baseCommit = walk.parseCommit(base.getObjectId());
             final RevCommit compareCommit = walk.parseCommit(other.getObjectId());
             walk.setRevFilter(RevFilter.MERGE_BASE);
             walk.markStart(baseCommit);
@@ -130,6 +127,8 @@ public class GitUtil {
             int ahead = RevWalkUtils.count(walk, baseCommit, mergeBase);
             int behind = RevWalkUtils.count(walk, compareCommit, mergeBase);
             return new BranchComparison(base, other, behind, ahead);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
         } finally {
             walk.dispose();
         }
