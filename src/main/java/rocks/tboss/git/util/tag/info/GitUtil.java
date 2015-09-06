@@ -19,6 +19,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -48,6 +49,11 @@ public class GitUtil {
         out.println("Finding ancestor tags of " + readableTagName(base) + " (to a max depth of " + depth + " tags in the past)");
         out.println("");
 
+        final List<BranchComparison> branchComparisons = getAncestorComparisons(repository, base);
+        printAncestors(out, base, branchComparisons, depth);
+    }
+
+    private static List<BranchComparison> getAncestorComparisons(Repository repository, Ref base) throws IOException, GitAPIException {
         final RevWalk revWalk = new ObjectWalk(repository);
         final ObjectId rootId = base.getObjectId();
         final RevCommit root = revWalk.parseCommit(rootId);
@@ -55,24 +61,33 @@ public class GitUtil {
 
         final List<Ref> tags = new Git(repository).tagList().call();
         final Map<ObjectId, Ref> tagsByCommitId = tagsByObjectId(tags, repository);
-        getRevCommitStream(revWalk)
+        return getRevCommitStream(revWalk)
                 //only where it points to a tag
                 .filter(commit -> null != tagsByCommitId.get(commit.getId()))
                 .map(commit -> {
                     final Ref tag = tagsByCommitId.get(commit.getId());
                     return calculateDivergence(repository, base, tag);
                 })
-                .forEach(branchComparison -> {
-                    final Ref tag = branchComparison.other;
-                    if (!tag.getName().equals(base.getName())) {
-                        out.println("Includes changes from: " + readableTagName(branchComparison.other));
-                        out.println("  - Ahead: " + branchComparison.ahead + " commits");
-                        if (branchComparison.behind > 0) {
-                            //Pretty sure this is actually impossible?
-                            out.println("  - Behind: " + branchComparison.behind + " (this is really bad!!! should always be ahead, never behind)");
-                        }
-                    }
-                });
+                .collect(Collectors.toList());
+    }
+
+    private static void printAncestors(final PrintStream out, final Ref base, final List<BranchComparison> branchComparisons, final int depth) {
+        int count = 0;
+        for (final BranchComparison branchComparison : branchComparisons) {
+            final Ref tag = branchComparison.other;
+            if (!tag.getName().equals(base.getName())) {
+                out.println("Includes changes from: " + readableTagName(branchComparison.other));
+                out.println("  - Ahead: " + branchComparison.ahead + " commits");
+                if (branchComparison.behind > 0) {
+                    //Pretty sure this is actually impossible?
+                    out.println("  - Behind: " + branchComparison.behind + " (this is really bad!!! should always be ahead, never behind)");
+                }
+                count++;
+                if (count>=depth) {
+                    return;
+                }
+            }
+        }
     }
 
     private static Stream<RevCommit> getRevCommitStream(final RevWalk revWalk) {
