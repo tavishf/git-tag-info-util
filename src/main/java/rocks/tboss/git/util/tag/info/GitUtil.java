@@ -57,12 +57,23 @@ public class GitUtil {
         out.println("Analysing git repository at " + path);
         final Repository repository = loadRepository(path);
 
-        final Ref baseRef = repository.getRef(base);
-        final Ref otherRef = repository.getRef(other);
+        out.println();
+        out.println("Comparing " + base + " with " + other);
+        final Ref baseRef = ensureRef(base, repository);
+        final Ref otherRef = ensureRef(other, repository);
 
+        out.println();
         final BranchComparison branchComparison = calculateDivergence(repository, baseRef, otherRef);
         out.println(branchComparison.base.getName() + " is " + branchComparison.ahead + " commits ahead of "+branchComparison.other.getName());
-        out.println(branchComparison.base.getName() + " is " + branchComparison.behind + " commits behind "+branchComparison.other.getName());
+        out.println(branchComparison.base.getName() + " is " + branchComparison.behind + " commits behind " + branchComparison.other.getName());
+    }
+
+    private static Ref ensureRef(final String name, final Repository repository) throws IOException {
+        final Ref ref = repository.getRef(name);
+        if (null==ref) {
+            throw new IllegalArgumentException("Couldn't find "+name);
+        }
+        return ref;
     }
 
     private static List<BranchComparison> getAncestorComparisons(Repository repository, Ref base) throws IOException, GitAPIException {
