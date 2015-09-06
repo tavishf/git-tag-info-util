@@ -9,7 +9,7 @@ import java.util.List;
 /**
  * App class to parse commandline args and call methods to do real work as appropriate
  */
-public class App {
+public class PrintTagHistory {
     public static void main(String[] args) throws IOException, GitAPIException {
         final List<String> arguments = Arrays.asList(args);
         if (arguments.size() < 2) {

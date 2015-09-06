@@ -37,7 +37,7 @@ public class GitUtil {
      * @throws IOException
      * @throws GitAPIException
      */
-    static void printTagHistory(final String tagName, final String path, final int depth, PrintStream out) throws IOException, GitAPIException {
+    static void printTagHistory(final String tagName, final String path, final int depth, final PrintStream out) throws IOException, GitAPIException {
         out.println("Analysing git repository at " + path);
         final Repository repository = loadRepository(path);
 
@@ -51,6 +51,18 @@ public class GitUtil {
 
         final List<BranchComparison> branchComparisons = getAncestorComparisons(repository, base);
         printAncestors(out, base, branchComparisons, depth);
+    }
+
+    static void printBranchComparison(final String base, final String other, final String path, PrintStream out) throws IOException {
+        out.println("Analysing git repository at " + path);
+        final Repository repository = loadRepository(path);
+
+        final Ref baseRef = repository.getRef(base);
+        final Ref otherRef = repository.getRef(other);
+
+        final BranchComparison branchComparison = calculateDivergence(repository, baseRef, otherRef);
+        out.println(branchComparison.base.getName() + " is " + branchComparison.ahead + " commits ahead of "+branchComparison.other.getName());
+        out.println(branchComparison.base.getName() + " is " + branchComparison.behind + " commits behind "+branchComparison.other.getName());
     }
 
     private static List<BranchComparison> getAncestorComparisons(Repository repository, Ref base) throws IOException, GitAPIException {
