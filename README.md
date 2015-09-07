@@ -16,9 +16,9 @@ Requires maven and JDK 8+.
 
 To build:
 
-mvn install
+mvn assembly:assembly
 
-Makes a jar in "target" dir
+Makes a jar with all dependencies included in "target" dir
 
 Run
 ---
@@ -27,4 +27,5 @@ Use Java 8+
 
 From dir with the built jar in it:
 
-$ java -cp gitstuff.jar PrintTagHistory <path> <tag> <depth>
+$ java.exe -cp git-util-jar-with-dependencies.jar rocks.tboss.git.util.PrintTagHistory
+

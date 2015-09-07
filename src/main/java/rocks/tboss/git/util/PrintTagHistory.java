@@ -1,4 +1,4 @@
-package rocks.tboss.git.util.tag.info;
+package rocks.tboss.git.util;
 
 import org.eclipse.jgit.api.errors.GitAPIException;
 
